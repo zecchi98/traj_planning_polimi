@@ -477,8 +477,6 @@ class Utility_functions:
         storage_lower_bound = np.zeros((int(npts), int(npts), 2))
         path_pnts = np.zeros((3, int(npts), int(npts)))
         normal_pnts = np.zeros((3, int(npts), int(npts)))
-        su_pnts = np.zeros((3, int(npts), int(npts)))
-        sv_pnts = np.zeros((3, int(npts), int(npts)))
         XX, YY, ZZ = [], [], []
 
         upper_boundary = np.transpose(upper_boundary)
@@ -532,20 +530,17 @@ class Utility_functions:
                             k1 = k1[0]
                             k2 = k2[0]
                             w = self.axis_magnitude(k1, k2, h, r)
-                            if (np.round(kg,3)>0 and np.round(km,3)>0) or (np.round(kg,3)>0 and np.round(km,3)<0): # defining the elliptic contact area (unoriented ellipse)
+                            if (np.round(kg, 3) > 0 and np.round(km, 3) > 0) or (np.round(kg, 3) > 0 and np.round(km,3) < 0):
                                 a = w[0]
                                 b = w[1]
-                                X,Y,Z,index_max, index_min = self.oriented_elliptic_contact(a, b, np.squeeze(d1), np.squeeze(d2), SU, SV, P,500)
+                                X, Y, Z, index_max, index_min = self.oriented_elliptic_contact(a, b,np.squeeze(d1),np.squeeze(d2), SU,SV, P, 500)
+                                upper_boundary_new = np.asarray([X[index_max], max(Y[:]), Z[index_max]])
+                                lower_boundary_new = np.asarray([X[index_min], min(Y[:]), Z[index_min]])
+                            if np.round(kg, 3) == 0 and np.round(km, 3) != 0:
+                                X, Y, Z, index_max, index_min = self.parabolic_contact(w, np.squeeze(d1),np.squeeze(d2), SU, SV, P,r)
+                                upper_boundary_new = np.asarray([X[index_max], max(Y[:]), Z[index_max]])
 
-                                upper_boundary_new = np.asarray([X[index_max], max(Y[:]), Z[index_max]]) # The ellipse is defined on the (Su, Sv) plane tangent to the surface so the points of the ellipse do not belong to the surface
-                                lower_boundary_new = np.asarray([X[index_min], min(Y[:]), Z[index_min]]) # We just used the X and Y coordinated of the points of the ellipse, and then the z coord is found later using nrbeval.
-                            if np.round(kg,3)== 0 and np.round(km,3)!=0:
-
-                                X,Y,Z,index_max, index_min = self.parabolic_contact(w, np.squeeze(d1), np.squeeze(d2), SU, SV, P,r)
-                                upper_boundary_new = np.asarray([X[index_max], max(Y[:]), Z[index_max]]) # The ellipse is defined on the (Su, Sv) plane tangent to the surface so the points of the ellipse do not belong to the surface
-                                lower_boundary_new = np.asarray([X[index_min], min(Y[:]), Z[index_min]]) # We just used the X and Y coordinated of the points of the ellipse, and then the z coord is found later using nrbeval.
-
-                            error = lower_boundary_new[1] - upper_boundary[1,u] # Error is computed as the difference in the y- coordinate, hence the arg 2; refer to equation 8 of reference 2;
+                            error = lower_boundary_new[1] - upper_boundary[1, u]
 
                             if error < 0:
                                 lower_bound[-1] = midpoint[-1]
@@ -559,8 +554,6 @@ class Utility_functions:
                                 storage_lower_bound[u, v] = np.asarray([lower_boundary_new[0] / surface_size_u,lower_boundary_new[1] / surface_size_v])
                                 path_pnts[:, u, v] = P
                                 normal_pnts[:, u, v] = NORMAL
-                                su_pnts[:,u,v] = SU # Storing the normals at each point of my path
-                                sv_pnts[:,u,v] = SV # Storing the normals at each point of my path
                                 ax1.plot3D(X, Y, Z)
                                 XX.append(X)
                                 YY.append(Y)
@@ -586,14 +579,8 @@ class Utility_functions:
 
         path_pnts_processed = []
         points_normal_processed = []
-        points_su_processed = []
-        points_sv_processed = []
-
-
         points = crv_pnt
         points_normal = list(normal)
-        points_su = list(Su)
-        points_sv = list(Sv)
 
         for v in range(int(npts)):
             for u in range(int(npts)):
@@ -601,32 +588,20 @@ class Utility_functions:
                     if path_pnts[i, u, v] != 0:
                         path_pnts_processed.append([path_pnts[0, u, v], path_pnts[1, u, v], path_pnts[2, u, v]])
                         points_normal_processed.append([normal_pnts[0, u, v], normal_pnts[1, u, v], normal_pnts[2, u, v]])
-                        points_su_processed.append([su_pnts[0, u, v], su_pnts[1, u, v], su_pnts[2, u, v]])
-                        points_sv_processed.append([sv_pnts[0, u, v], sv_pnts[1, u, v], sv_pnts[2, u, v]])
 
             points_orig = points
             normal_points_orig = points_normal
-            su_points_orig = points_su
-            sv_points_orig = points_sv
-
             path_pnts_processed_reversed = path_pnts_processed[::-1]
             normal_points_processed_reversed = points_normal_processed[::-1]
-            su_points_processed_reversed = points_su_processed[::-1]
-            sv_points_processed_reversed = points_sv_processed[::-1]
-
 
             if (v + 1) % 2 == 0:
                 points = points_orig + path_pnts_processed
                 points_normal = normal_points_orig + points_normal_processed
-                points_su = su_points_orig + points_su_processed
-                points_sv = sv_points_orig + points_sv_processed
 
             else:
 
                 points = points_orig + path_pnts_processed_reversed
                 points_normal = normal_points_orig + normal_points_processed_reversed
-                points_su = su_points_orig + su_points_processed_reversed
-                points_sv = sv_points_orig + sv_points_processed_reversed
 
             ax1.plot(np.asarray(points)[:, 0], np.asarray(points)[:, 1], np.asarray(points)[:, 2], color='red',linestyle='-', linewidth=3)
             ''' Finding the path interpolating the points found with the bisection method '''
@@ -635,11 +610,8 @@ class Utility_functions:
             curve_final.ctrlpts = points
             curve_final.knotvector = utilities.generate_knot_vector(curve_final.degree, len(curve_final.ctrlpts))
             curve_final.delta = 0.05
-
             path_pnts_processed = []
             points_normal_processed = []
-            points_su_processed = []
-            points_sv_processed = []
 
         ax1.set_xlabel('$u$')
         ax1.set_ylabel('$v$')
@@ -648,9 +620,9 @@ class Utility_functions:
         plt.show()
 
 
-        return surfpts, initial_curve_eval_points, initial_curve_points, initial_path, np.asarray(points), np.asarray(points_normal),np.asarray(points_su),np.asarray(points_sv), curve_final
+        return surfpts, initial_curve_eval_points, initial_curve_points, initial_path, np.asarray(points), np.asarray(points_normal), curve_final
 
-    def Rotation_Matrix_from_Normal_Vector(self,points,points_normal,points_su,points_sv):
+    def Rotation_Matrix_from_Normal_Vector(self,points,points_normal):
         '''
         INPUTS:
         points : array eith the polishing path points coordinates
@@ -666,17 +638,14 @@ class Utility_functions:
         tz = np.zeros((npoints,3))
         Rotation_matrix = np.zeros((npoints,3,3))
 
-        tx[:,0] = (points_su[:, 0] - points[:, 0])
-        tx[:,1] = (points_su[:, 1] - points[:, 1])
-        tx[:,2] = (points_su[:, 2] - points[:, 2])
+        tz[:,0] = -(points_normal[:, 0] - points[:, 0])
+        tz[:,1] = -(points_normal[:, 1] - points[:, 1])
+        tz[:,2] = -(points_normal[:, 2] - points[:, 2])
+        for i in range(npoints):
+            tx[i,:]  = np.cross(tz[i,:],np.asarray([0,1,0]))
+        for i in range(npoints):
+            ty[i,:]  = np.cross(tz[i,:],tx[i,:])
 
-        ty[:,0] = (points_sv[:, 0] - points[:, 0])
-        ty[:,1] = (points_sv[:, 1] - points[:, 1])
-        ty[:,2] = (points_sv[:, 2] - points[:, 2])
-
-        tz[:,0] = (points_normal[:, 0] - points[:, 0])
-        tz[:,1] = (points_normal[:, 1] - points[:, 1])
-        tz[:,2] = (points_normal[:, 2] - points[:, 2])
 
         Rotation_matrix[:,:,0] = tx
         Rotation_matrix[:,:,1] = ty
